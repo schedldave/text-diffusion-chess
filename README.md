@@ -57,35 +57,60 @@ python evaluate.py --games_file generated_games.txt
 python evaluate.py --games_file generated_games_ar.txt
 ```
 
-## Results (500 Epochs)
+## Results
 
-Trained on 10,000 weighted-random chess games (mean length 145 moves) using 3x Tesla V100 GPUs.
+Trained on 10,000 weighted-random chess games (mean length 145 moves) using 3x Tesla V100 GPUs for 500 epochs each.
 
-### Model Comparison
+### Head-to-Head: Diffusion vs Autoregressive (Best Checkpoints)
 
-| | Diffusion (7.1M params) | Autoregressive (7.0M params) |
+| Metric | Diffusion (best, ep 416) | AR (best, ep 33) |
 |---|---|---|
-| Architecture | Bidirectional transformer + masked diffusion | Causal (GPT-style) transformer |
-| Training signal | Predict masked tokens at random positions | Predict next token |
-| Best val loss | 5.18 (epoch 416) | TBD |
-| Sampling | 100-step iterative unmasking | Token-by-token left-to-right |
+| Parameters | 7,123,164 | 6,991,580 |
+| Best val loss | 5.18 | **4.65** |
+| Fully legal games | 0% | 0% |
+| **Mean valid prefix** | 7.4 moves | **10.5 moves** |
+| Median valid prefix | 7 moves | **10 moves** |
+| Max valid prefix | 20 moves | **23 moves** |
+| Unique games | 100% | 100% |
 
-### Generated Game Quality
+**The autoregressive model wins**, producing longer valid move prefixes (10.5 vs 7.4 mean) while reaching its best checkpoint much earlier (epoch 33 vs 416).
 
-| Metric | Training Data | Diffusion (500 ep) | AR (500 ep) |
+### AR Model: Effect of Training Duration
+
+The AR model peaks early and then overfits. More training actually doesn't help game quality much, but doesn't hurt either -- the model memorizes training data but still generates diverse outputs.
+
+| Checkpoint | Val Loss | Train Loss | Mean Valid Prefix | Max Valid Prefix |
+|---|---|---|---|---|
+| Epoch 10 | 5.27 | 4.74 | 4.5 | 11 |
+| **Epoch 33 (best)** | **4.65** | 3.48 | **10.5** | 23 |
+| Epoch 100 | 5.58 | 2.88 | 11.5 | 22 |
+| Epoch 500 | 7.10 | 1.98 | 11.5 | **26** |
+
+Interestingly, the heavily overfitted epoch 500 model still generates games of similar quality to the best val-loss checkpoint, and even achieves the longest valid prefix (26 moves).
+
+### Diffusion Model: Effect of Training Duration
+
+The diffusion model trains more slowly but with much less overfitting.
+
+| Checkpoint | Val Loss | Mean Valid Prefix | Max Valid Prefix |
 |---|---|---|---|
-| Fully legal games | 100% | 0% | TBD |
-| Mean valid prefix | 143.9 moves | 7.4 moves | TBD |
-| Max valid prefix | 150 moves | 20 moves | TBD |
-| Unique games | 100% | 100% | TBD |
+| Epoch 10 | 5.90 | 1.5 | 9 |
+| Epoch 100 | 5.38 | 4.7 | 16 |
+| **Epoch 416 (best)** | **5.18** | **7.4** | **20** |
 
-### Diffusion Training Progress (10 vs 500 Epochs)
+### Training Dynamics Comparison
 
-| Metric | 10 Epochs | 500 Epochs |
+| | Diffusion | Autoregressive |
 |---|---|---|
-| Best val loss | 5.90 | 5.18 |
-| Mean valid prefix | 1.5 moves | 7.4 moves |
-| Max valid prefix | 9 moves | 20 moves |
+| Best val loss | 5.18 | 4.65 |
+| Epoch of best val loss | 416 | 33 |
+| Final train loss | 4.90 | 1.98 |
+| Final val loss | 5.18 | 7.10 |
+| **Train/val gap at 500 ep** | **0.28** | **5.12** |
+| Overfitting | Minimal | Severe |
+| Training time | ~65 min | ~69 min |
+
+The diffusion model has a strong regularization effect from random masking, maintaining a train/val gap of only 0.28 even after 500 epochs. The AR model's gap grows to 5.12.
 
 ## Approach
 
@@ -93,6 +118,14 @@ Trained on 10,000 weighted-random chess games (mean length 145 moves) using 3x T
 - **Tokenizer**: Move-level tokenizer where each SAN move (e.g., `e4`, `Nf3`, `O-O`) is a single token. Vocabulary of ~4,300 unique moves.
 - **Diffusion Model**: Bidirectional transformer with absorbing-state masked diffusion (inspired by MDLM). Forward process masks tokens with cosine schedule; reverse process iteratively unmasks by confidence over 100 steps.
 - **AR Baseline**: Matched causal transformer with standard next-token prediction and autoregressive sampling.
+- **Architecture**: Both models use d_model=256, 8 heads, 6 layers, d_ff=1024 (~7M parameters).
+
+## Key Takeaways
+
+1. **AR models learn chess move structure faster** -- the causal left-to-right inductive bias aligns well with the sequential nature of chess games.
+2. **Diffusion models resist overfitting** -- the random masking during training acts as a powerful regularizer, keeping the train/val gap minimal.
+3. **Neither model generates fully legal games** with only 10K training games and 500 epochs -- chess rule compliance requires understanding board state, which pure sequence modeling struggles with.
+4. **More AR training doesn't hurt generation quality** despite massive overfitting -- the model still generates diverse, novel sequences even at epoch 500.
 
 ## References
 

@@ -77,13 +77,45 @@ text-diffusion-chess/
 - **Config**: Same, 500 epochs
 - **Results**: best val_loss=5.18 (epoch 416), mean valid prefix=7.4 moves, max=20 moves
 - **Time**: ~65 minutes
-- **Observations**: Significant improvement in valid prefix length (1.5 -> 7.4 mean), model learned legal openings and basic piece movement, but no fully legal games. Loss continued decreasing but with diminishing returns after ~400 epochs.
+- **Observations**:
+  - Significant improvement over 10 epochs (1.5 -> 7.4 mean valid prefix)
+  - Minimal overfitting: train/val gap only 0.28 at epoch 500
+  - Diffusion epoch 100: val_loss=5.38, mean prefix=4.7, max=16
 
-### Experiment 3: Autoregressive Baseline (500 Epochs) - IN PROGRESS
+### Experiment 3: Autoregressive Baseline (500 Epochs)
 - **Data**: Same as above
 - **Config**: Matched architecture and training setup
-- **Results at epoch 100**: train_loss=2.88, val_loss=5.58 (significant overfitting vs diffusion's 5.34/5.39 at same epoch)
-- **Observation**: AR model overfits much faster than diffusion model on this dataset size
+- **Results**: best val_loss=4.65 (epoch 33), mean valid prefix=10.5 moves, max=23 moves
+- **Time**: ~69 minutes
+- **Observations**:
+  - AR model learns faster (best val at epoch 33 vs 416 for diffusion)
+  - Severe overfitting: train_loss=1.98, val_loss=7.10 at epoch 500 (gap of 5.12)
+  - Despite overfitting, epoch 500 still generates diverse games with similar prefix quality (11.5 mean, 26 max)
+  - AR model achieves better game quality (10.5 vs 7.4 mean prefix)
+
+### Cross-Checkpoint Comparison
+
+#### AR Checkpoints
+| Checkpoint | Val Loss | Mean Prefix | Max Prefix |
+|---|---|---|---|
+| Epoch 10 | 5.27 | 4.5 | 11 |
+| Epoch 33 (best) | 4.65 | 10.5 | 23 |
+| Epoch 100 | 5.58 | 11.5 | 22 |
+| Epoch 500 | 7.10 | 11.5 | 26 |
+
+#### Diffusion Checkpoints
+| Checkpoint | Val Loss | Mean Prefix | Max Prefix |
+|---|---|---|---|
+| Epoch 10 | 5.90 | 1.5 | 9 |
+| Epoch 100 | 5.38 | 4.7 | 16 |
+| Epoch 416 (best) | 5.18 | 7.4 | 20 |
+
+### Key Findings
+1. AR model produces longer valid prefixes (10.5 vs 7.4) -- causal bias helps for sequential games
+2. Diffusion model barely overfits (0.28 gap) vs AR (5.12 gap) -- masking is a strong regularizer
+3. Neither generates fully legal games -- board state tracking remains the core challenge
+4. AR game quality plateaus early (~epoch 33) while diffusion keeps improving through epoch 416
+5. Heavily overfitted AR models still generate diverse, quality sequences
 
 ## Status
 
@@ -101,6 +133,6 @@ text-diffusion-chess/
 - [x] First diffusion training run (10 epochs)
 - [x] Extended diffusion training (500 epochs)
 - [x] Evaluation of diffusion-generated games
-- [ ] Complete AR training (500 epochs)
-- [ ] Evaluate AR-generated games
-- [ ] Head-to-head comparison
+- [x] Complete AR training (500 epochs)
+- [x] Evaluate AR-generated games (multiple checkpoints)
+- [x] Head-to-head comparison
