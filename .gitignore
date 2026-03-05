@@ -24,11 +24,11 @@ data/*.txt
 data/*.pgn
 data/*.json
 
-# Model checkpoints
-checkpoints/
-checkpoints_ar/
-*.pt
+# Model checkpoints (intermediate epochs)
+checkpoints/epoch_*.pt
+checkpoints_ar/epoch_*.pt
 *.pth
+# Keep best.pt and final checkpoints via git add -f
 
 # Generated games
 generated_games*.txt
