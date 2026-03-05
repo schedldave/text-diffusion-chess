@@ -26,8 +26,12 @@ data/*.json
 
 # Model checkpoints
 checkpoints/
+checkpoints_ar/
 *.pt
 *.pth
+
+# Generated games
+generated_games*.txt
 
 # Logs
 logs/

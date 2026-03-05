@@ -1,8 +1,7 @@
-"""Generate chess games from a trained diffusion model.
+"""Generate chess games from a trained autoregressive model.
 
 Usage:
-    python sample.py --checkpoint checkpoints/best.pt --config configs/default.yaml
-    python sample.py --checkpoint checkpoints/best.pt --num_games 50 --temperature 0.8
+    python sample_ar.py --checkpoint checkpoints_ar/best.pt --config configs/test.yaml
 """
 
 import argparse
@@ -11,8 +10,7 @@ from pathlib import Path
 import torch
 import yaml
 
-from model.transformer import ChessDiffusionTransformer
-from model.diffusion import MaskedDiffusion
+from model.autoregressive import ChessAutoregressive
 from tokenizer.chess_tokenizer import ChessTokenizer
 
 
@@ -21,9 +19,8 @@ def load_model(
     config: dict,
     tokenizer: ChessTokenizer,
     device: torch.device,
-) -> MaskedDiffusion:
-    """Load a trained diffusion model from checkpoint."""
-    transformer = ChessDiffusionTransformer(
+) -> ChessAutoregressive:
+    model = ChessAutoregressive(
         vocab_size=tokenizer.vocab_size,
         d_model=config["model"]["d_model"],
         n_heads=config["model"]["n_heads"],
@@ -34,23 +31,15 @@ def load_model(
         pad_id=tokenizer.pad_id,
     )
 
-    diffusion = MaskedDiffusion(
-        transformer=transformer,
-        num_timesteps=config["diffusion"]["num_timesteps"],
-        mask_id=tokenizer.mask_id,
-        pad_id=tokenizer.pad_id,
-        schedule=config["diffusion"]["schedule"],
-    )
-
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    diffusion.load_state_dict(checkpoint["model"])
-    diffusion = diffusion.to(device)
-    diffusion.eval()
-    return diffusion
+    model.load_state_dict(checkpoint["model"])
+    model = model.to(device)
+    model.eval()
+    return model
 
 
 def sample_games(
-    model: MaskedDiffusion,
+    model: ChessAutoregressive,
     tokenizer: ChessTokenizer,
     num_games: int,
     seq_len: int,
@@ -58,7 +47,6 @@ def sample_games(
     temperature: float = 0.9,
     batch_size: int = 32,
 ) -> list[list[str]]:
-    """Generate chess games from the model."""
     all_games: list[list[str]] = []
 
     remaining = num_games
@@ -84,14 +72,14 @@ def sample_games(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sample games from trained model")
+    parser = argparse.ArgumentParser(description="Sample games from AR model")
     parser.add_argument("--checkpoint", type=str, required=True)
     parser.add_argument("--config", type=str, default="configs/default.yaml")
     parser.add_argument("--vocab", type=str, default=None)
     parser.add_argument("--num_games", type=int, default=100)
     parser.add_argument("--seq_len", type=int, default=None)
     parser.add_argument("--temperature", type=float, default=0.9)
-    parser.add_argument("--output", type=str, default="generated_games.txt")
+    parser.add_argument("--output", type=str, default="generated_games_ar.txt")
     parser.add_argument("--gpu", type=int, default=None)
     args = parser.parse_args()
 
